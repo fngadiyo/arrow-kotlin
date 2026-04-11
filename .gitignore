@@ -1,0 +1,16 @@
+# Android
+.gradle
+/build
+/app/build
+/local.properties
+/.idea
+.DS_Store
+*.iml
+captures/
+.externalNativeBuild
+.cxx
+/google-services.json
+
+# Build and generated files
+build_log.txt
+fg_icon.png

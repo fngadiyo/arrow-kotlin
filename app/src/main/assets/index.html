@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Arrows</title>
+    <style>
+        :root {
+            --bg: #fafafa;
+            --text: #171717;
+            --muted: #737373;
+            --accent: #171717;
+            --accent-contrast: #ffffff;
+            --border: #e5e5e5;
+            --overlay: rgba(250, 250, 250, 0.9);
+            --control-bg: #ffffff;
+            --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        html[data-theme="dark"] {
+            --bg: #0a0a0a;
+            --text: #ededed;
+            --muted: #a1a1a1;
+            --accent: #ededed;
+            --accent-contrast: #0a0a0a;
+            --border: #262626;
+            --overlay: rgba(10, 10, 10, 0.9);
+            --control-bg: #171717;
+        }
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100dvh; 
+            padding: 24px; 
+            box-sizing: border-box;
+            font-family: var(--font); 
+            color: var(--text);
+            transition: background 0.4s ease, color 0.4s ease;
+            -webkit-font-smoothing: antialiased;
+        }
+        canvas { 
+            background: transparent; 
+            cursor: crosshair; 
+            touch-action: none; 
+            image-rendering: auto; 
+            width: min(100%, 100vw - 48px);
+            max-width: 600px;
+            height: auto;
+            display: block;
+            margin: 20px 0;
+        }
+        .ui {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 600px;
+        }
+        button, select.control { 
+            padding: 12px 20px; 
+            font-weight: 500; 
+            font-size: 13px;
+            letter-spacing: -0.01em;
+            cursor: pointer; 
+            border-radius: 6px; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid var(--border);
+            outline: none;
+            background: var(--control-bg);
+            color: var(--text);
+        }
+        button {
+            background: var(--accent);
+            color: var(--accent-contrast);
+            border: 1px solid var(--accent);
+        }
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        select.control {
+            appearance: none;
+            padding-right: 32px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23737373'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 14px;
+        }
+        select.control:hover {
+            border-color: var(--muted);
+        }
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            background: var(--overlay);
+            backdrop-filter: blur(12px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .overlay-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 16px;
+            letter-spacing: 0.05em;
+        }
+        .progress-track {
+            width: 120px;
+            height: 2px;
+            background: var(--border);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+        #progressBar {
+            width: 0%;
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+        .screen {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .hidden {
+            display: none !important;
+        }
+        .title {
+            font-size: 42px;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            margin: 0 0 12px;
+            color: var(--text);
+        }
+        .subtitle {
+            margin: 0 0 32px;
+            color: var(--muted);
+            font-size: 15px;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+        .hud {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .hud span {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+        #finalScore {
+            font-size: 64px;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin: 24px 0;
+            color: var(--text);
+        }
+        #finalBreakdown {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            justify-content: center;
+            width: 100%;
+        }
+        .button-group button {
+            flex: 1;
+            padding: 10px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: var(--control-bg);
+            color: var(--text);
+            border-color: var(--border);
+        }
+        .button-group button.active {
+            background: var(--accent);
+            color: var(--accent-contrast);
+            border-color: var(--accent);
+        }
+        .lives-container {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            justify-content: center;
+        }
+        .heart {
+            width: 28px;
+            height: 28px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .heart svg {
+            width: 100%;
+            height: 100%;
+            fill: var(--text);
+            stroke: var(--text);
+            stroke-width: 2;
+        }
+        .heart.lost svg {
+            fill: transparent;
+        }
+        .label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        @media (min-width: 720px) {
+            body { justify-content: center; padding: 20px; }
+            .screen { width: min(92vw, 760px); }
+            .title { font-size: 34px; }
+            .ui { align-items: center; }
+            canvas { max-width: 680px; }
+        }
+    </style>
+</head>
+<body>
+    <section id="startScreen" class="screen">
+        <h1 class="title">The Arrows</h1>
+        <p class="subtitle">Clear every arrow to proceed.</p>
+        
+        <div style="max-width: 320px; margin: 0 auto; text-align: left;">
+            <span class="label">Choose Shape</span>
+            <div class="button-group" id="shapeGroup">
+                <button onclick="selectShape('circle')" id="btn-circle">CIRCLE</button>
+                <button onclick="selectShape('square')" id="btn-square">SQUARE</button>
+            </div>
+
+            <span class="label">Select Level</span>
+            <div class="button-group">
+                <button onclick="startGame('easy')">EASY</button>
+                <button onclick="startGame('medium')">MEDIUM</button>
+                <button onclick="startGame('hard')">HARD</button>
+                <button onclick="startGame('extreme')">EXTREME</button>
+            </div>
+            
+            <span class="label">Settings</span>
+            <div class="ui" style="gap: 8px;">
+                <select id="themeSelector" class="control" onchange="onThemeChange()" style="flex:1">
+                    <option value="system" selected>SYSTEM</option>
+                    <option value="light">LIGHT</option>
+                    <option value="dark">DARK</option>
+                </select>
+                <select id="modeSelector" class="control" style="flex:1">
+                    <option value="casual" selected>CASUAL</option>
+                    <option value="competitive">COMPETITIVE</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section id="gameScreen" class="screen hidden">
+        <div class="hud">
+            <span id="hudTimer">--:--</span>
+            <span id="hudMode">Casual</span>
+            <span id="statsText">Solved: 0/0</span>
+        </div>
+        <div id="canvasContainer" style="position:relative; overflow:hidden; border-radius:12px; border:1px solid var(--border); background:var(--bg);">
+            <canvas id="mazeCanvas" style="margin:0; width:100%"></canvas>
+        </div>
+        <div class="lives-container" id="livesDisplay">
+            <!-- Hearts will be injected here -->
+        </div>
+    </section>
+
+    <section id="resultScreen" class="screen hidden">
+        <h2 id="finalTitle" class="title">Complete</h2>
+        <p id="finalReason" class="subtitle">Summary</p>
+        <div id="finalScore">0</div>
+        <div id="finalBreakdown"></div>
+        <div class="ui">
+            <button onclick="showStartMenu()" style="width:100%; max-width:280px;">PLAY AGAIN</button>
+        </div>
+    </section>
+
+    <div id="loadingOverlay">
+        <div class="overlay-title">GENERATING...</div>
+        <div id="progressText">Wait a moment</div>
+        <div class="progress-track">
+            <div id="progressBar"></div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('mazeCanvas');
+    const ctx = canvas.getContext('2d');
+    const cellSize = 24; 
+    let cols = 25; 
+    let rows = 25;
+
+    const difficulties = {
+        easy: 25,
+        medium: 30,
+        hard: 35,
+        extreme: 40
+    };
+    
+    canvas.width = cols * cellSize;
+    canvas.height = rows * cellSize;
+
+    let segments = [];
+    let isWin = false;
+    let shapeMode = 'circle'; 
+    let maskGrid = new Uint8Array(25 * 25).fill(1); // Default large enough
+    let themeMode = 'system';
+    let gameMode = 'casual';
+    let gameState = 'menu';
+    let roundEnded = false;
+    let roundStartMs = 0;
+    let timeLeftSeconds = 150;
+    let initialArrowCount = 0;
+    let solvedCount = 0;
+    let mistakes = 0;
+    let lives = 3;
+    let clickCount = 0;
+    let boardFillPct = '0.0';
+    let boardMaxBlockers = 0;
+
+    // Camera / Zoom state
+    let zoomScale = 1.0;
+    let panX = 0;
+    let panY = 0;
+    let isDragging = false;
+    let lastMousePos = { x: 0, y: 0 };
+    let pointers = new Map();
+    let initialPinchDist = 0;
+    let initialPinchScale = 1.0;
+
+    const COMPETITIVE_SECONDS = 150;
+
+    const startScreen = document.getElementById('startScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const resultScreen = document.getElementById('resultScreen');
+    const statsText = document.getElementById('statsText');
+    const hudMode = document.getElementById('hudMode');
+    const hudTimer = document.getElementById('hudTimer');
+
+    const themePalettes = {
+        dark: {
+            snake: '#ededed',
+            blocked: '#ef4444',
+            boardBg: '#0a0a0a',
+            dots: 'rgba(255, 255, 255, 0.1)',
+            win: '#ededed'
+        },
+        light: {
+            snake: '#171717',
+            blocked: '#ef4444',
+            boardBg: '#fafafa',
+            dots: 'rgba(0, 0, 0, 0.1)',
+            win: '#171717'
+        }
+    };
+
+    let activePalette = themePalettes.dark;
+
+    function resolveSystemTheme() {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function applyThemeMode(mode) {
+        themeMode = mode;
+        const resolvedTheme = mode === 'system' ? resolveSystemTheme() : mode;
+        document.documentElement.setAttribute('data-theme', resolvedTheme);
+        activePalette = themePalettes[resolvedTheme];
+
+        for (let segment of segments) {
+            if (!segment.isRetracting) segment.color = activePalette.snake;
+        }
+
+        preRenderDots();
+    }
+
+    function onThemeChange() {
+        const mode = document.getElementById('themeSelector').value;
+        applyThemeMode(mode);
+    }
+
+    function formatTime(totalSeconds) {
+        const seconds = Math.max(0, Math.floor(totalSeconds));
+        const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const ss = String(seconds % 60).padStart(2, '0');
+        return `${mm}:${ss}`;
+    }
+
+    function updateHud() {
+        hudMode.textContent = `mode: ${gameMode}`;
+        hudTimer.textContent = `time: ${gameMode === 'competitive' ? formatTime(timeLeftSeconds) : '--:--'}`;
+        statsText.textContent = `solved: ${solvedCount}/${initialArrowCount} | mistakes: ${mistakes} | fill: ${boardFillPct}%`;
+    }
+
+    function showScreen(target) {
+        startScreen.classList.add('hidden');
+        gameScreen.classList.add('hidden');
+        resultScreen.classList.add('hidden');
+        target.classList.remove('hidden');
+    }
+
+    function showStartMenu() {
+        gameState = 'menu';
+        roundEnded = true;
+        isWin = false;
+        showScreen(startScreen);
+    }
+
+    function startGame(level) {
+        if (level) {
+            cols = difficulties[level];
+            rows = difficulties[level];
+            maskGrid = new Uint8Array(cols * rows).fill(1);
+            canvas.width = cols * cellSize;
+            canvas.height = rows * cellSize;
+            buildShapeMask();
+            preRenderDots();
+        }
+        gameMode = document.getElementById('modeSelector').value;
+        showScreen(gameScreen);
+        initGame();
+    }
+
+    const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    if (typeof systemThemeQuery.addEventListener === 'function') {
+        systemThemeQuery.addEventListener('change', () => {
+            if (themeMode === 'system') applyThemeMode('system');
+        });
+    }
+
+    function selectShape(s) {
+        shapeMode = s;
+        document.querySelectorAll('#shapeGroup button').forEach(b => b.classList.remove('active'));
+        document.getElementById(`btn-${s}`).classList.add('active');
+        buildShapeMask();
+        preRenderDots();
+    }
+
+    function updateLivesUI() {
+        const container = document.getElementById('livesDisplay');
+        let html = '';
+        for (let i = 0; i < 3; i++) {
+            const lost = i >= lives;
+            html += `<div class="heart ${lost ? 'lost' : ''}">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+            </div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function onShapeChange() {
+        // Obsolete but kept for safety during transition
+    }
+
+    function buildShapeMask() {
+        if (shapeMode === 'square') {
+            maskGrid.fill(1);
+            return;
+        }
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = cols;
+        tempCanvas.height = rows;
+        const tctx = tempCanvas.getContext('2d');
+        tctx.fillStyle = "black";
+        tctx.fillRect(0, 0, cols, rows);
+        tctx.fillStyle = "white";
+        
+        if (shapeMode === 'circle') {
+            tctx.beginPath();
+            tctx.arc(cols/2, rows/2, cols/2, 0, Math.PI * 2);
+            tctx.fill();
+        } else {
+            tctx.font = `${cols}px serif`;
+            tctx.textAlign = "center";
+            tctx.textBaseline = "middle";
+            tctx.fillText(shapeMode, cols/2, rows/2 + 2); // Small offset for emoji centering
+        }
+        
+        const imgData = tctx.getImageData(0, 0, cols, rows).data;
+        
+        let minX = cols, maxX = 0, minY = rows, maxY = 0;
+        let foundAny = false;
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                if (imgData[(y * cols + x) * 4] > 128) {
+                    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                    foundAny = true;
+                }
+            }
+        }
+
+        if (foundAny) {
+            const shapeW = maxX - minX + 1;
+            const shapeH = maxY - minY + 1;
+            const offX = Math.floor((cols - shapeW) / 2) - minX;
+            const offY = Math.floor((rows - shapeH) / 2) - minY;
+
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const srcX = x - offX;
+                    const srcY = y - offY;
+                    if (srcX >= 0 && srcX < cols && srcY >= 0 && srcY < rows) {
+                        maskGrid[y * cols + x] = imgData[(srcY * cols + srcX) * 4] > 128 ? 1 : 0;
+                    } else {
+                        maskGrid[y * cols + x] = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    function isInside(x, y) {
+        if (x < 0 || x >= cols || y < 0 || y >= rows) return false;
+        return maskGrid[y * cols + x] === 1;
+    }
+
+    class Snake {
+        constructor(points, forcedDirIndex = null) {
+            this.points = points;
+            this.startPoints = null; 
+            this.updateDirection();
+            if (forcedDirIndex !== null) { if (this.getDirKey() !== forcedDirIndex) this.flip(); }
+
+            this.isMoving = false;
+            this.isRetracting = false;
+            this.moveProgress = 0;
+            this.speed = 0.85; 
+            this.color = activePalette.snake;
+        }
+        getDirKey() {
+            if (this.dir.x > 0) return 0; if (this.dir.y > 0) return 1;
+            if (this.dir.x < 0) return 2; if (this.dir.y < 0) return 3;
+            return 0;
+        }
+        updateDirection() {
+            if (this.points.length < 2) return;
+            this.dir = { x: this.points[0].x - this.points[1].x, y: this.points[0].y - this.points[1].y };
+        }
+        flip() { this.points.reverse(); this.updateDirection(); }
+        draw() {
+            ctx.strokeStyle = this.color; ctx.lineWidth = 3.0; ctx.lineCap = "round"; ctx.lineJoin = "round";
+            ctx.beginPath();
+            const offset = this.moveProgress;
+            for (let i = 0; i < this.points.length; i++) {
+                const pt = this.points[i];
+                let px = pt.x + (i === 0 ? this.dir.x * offset : (this.points[i-1].x - pt.x) * offset);
+                let py = pt.y + (i === 0 ? this.dir.y * offset : (this.points[i-1].y - pt.y) * offset);
+                if (i > 0 && i < this.points.length - 1) {
+                    const prev = this.points[i-1], next = this.points[i+1];
+                    if (!((prev.y === pt.y && next.y === pt.y) || (prev.x === pt.x && next.x === pt.x))) { px = pt.x; py = pt.y; }
+                }
+                const sx = px * cellSize + cellSize/2, sy = py * cellSize + cellSize/2;
+                if (i === 0) { ctx.moveTo(sx, sy); this.drawHead(sx, sy); }
+                else { ctx.lineTo(sx, sy); }
+            }
+            ctx.stroke();
+        }
+        drawHead(x, y) {
+            const angle = Math.atan2(this.dir.y, this.dir.x);
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+            const vertices = [
+                { x: 6.4, y: 0 },
+                { x: -5.8, y: -4.2 },
+                { x: -5.8, y: 4.2 }
+            ];
+            const cornerRadius = 1.1;
+
+            const normalize = (dx, dy) => {
+                const len = Math.hypot(dx, dy) || 1;
+                return { x: dx / len, y: dy / len };
+            };
+
+            ctx.beginPath();
+            for (let index = 0; index < vertices.length; index++) {
+                const prev = vertices[(index - 1 + vertices.length) % vertices.length];
+                const current = vertices[index];
+                const next = vertices[(index + 1) % vertices.length];
+
+                const toPrev = normalize(prev.x - current.x, prev.y - current.y);
+                const toNext = normalize(next.x - current.x, next.y - current.y);
+
+                const start = {
+                    x: current.x + toPrev.x * cornerRadius,
+                    y: current.y + toPrev.y * cornerRadius
+                };
+                const end = {
+                    x: current.x + toNext.x * cornerRadius,
+                    y: current.y + toNext.y * cornerRadius
+                };
+
+                if (index === 0) ctx.moveTo(start.x, start.y);
+                else ctx.lineTo(start.x, start.y);
+
+                ctx.quadraticCurveTo(current.x, current.y, end.x, end.y);
+            }
+
+            ctx.closePath();
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.restore();
+        }
+        update() {
+            if (this.isRetracting) {
+                this.moveProgress -= this.speed * 1.5;
+                if (this.moveProgress <= 0) {
+                    this.moveProgress = 0; this.isRetracting = false; this.color = activePalette.snake;
+                    if (this.startPoints) { this.points = JSON.parse(JSON.stringify(this.startPoints)); this.startPoints = null; this.updateDirection(); }
+                }
+                return;
+            }
+            if (!this.isMoving) return;
+            this.moveProgress += this.speed;
+            if (this.moveProgress >= 1) {
+                const nx = this.points[0].x + this.dir.x, ny = this.points[0].y + this.dir.y;
+                let hit = false;
+                if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+                    for (let s of segments) { 
+                        if (s === this) continue;
+                        for (let p of s.points) if (p.x === nx && p.y === ny) hit = true; 
+                    }
+                }
+                if (hit) {
+                    this.isMoving = false;
+                    this.isRetracting = true;
+                    this.color = activePalette.blocked;
+                    mistakes++;
+                    lives--;
+                    updateLivesUI();
+                    if (lives <= 0) {
+                        endRound('failed');
+                        return;
+                    }
+                    updateHud();
+                    return;
+                }
+                this.moveProgress = 0; this.points.unshift({ x: nx, y: ny }); this.points.pop(); this.updateDirection();
+                if (this.points.every(p => p.x < 0 || p.x >= cols || p.y < 0 || p.y >= rows)) {
+                    segments = segments.filter(s => s !== this);
+                    solvedCount = initialArrowCount - segments.length;
+                    updateHud();
+                    if (segments.length === 0) {
+                        isWin = true;
+                        endRound('solved');
+                    }
+                }
+            }
+        }
+    }
+
+    function computeDependencies(snakes) {
+        const occupancy = new Int16Array(cols * rows).fill(-1);
+        for (let index = 0; index < snakes.length; index++) {
+            for (let point of snakes[index].points) {
+                if (isInside(point.x, point.y)) occupancy[point.y * cols + point.x] = index;
+            }
+        }
+
+        const deps = Array.from({ length: snakes.length }, () => new Set());
+        for (let index = 0; index < snakes.length; index++) {
+            const snake = snakes[index];
+            const head = snake.points[0];
+            const dx = snake.dir.x;
+            const dy = snake.dir.y;
+            for (let step = 1; step < cols + rows; step++) {
+                const cx = head.x + dx * step;
+                const cy = head.y + dy * step;
+                if (!isInside(cx, cy)) break;
+                const blocker = occupancy[cy * cols + cx];
+                if (blocker !== -1 && blocker !== index) deps[index].add(blocker);
+            }
+        }
+        return deps;
+    }
+
+    function solveByDependencyElimination(snakes) {
+        const deps = computeDependencies(snakes);
+        const solved = [];
+        const alive = new Set(snakes.map((_, index) => index));
+
+        while (alive.size > 0) {
+            let picked = -1;
+            for (let index of alive) {
+                let blocked = false;
+                for (let dep of deps[index]) {
+                    if (alive.has(dep)) {
+                        blocked = true;
+                        break;
+                    }
+                }
+                if (!blocked) {
+                    picked = index;
+                    break;
+                }
+            }
+            if (picked === -1) return { solvable: false, order: solved };
+            solved.push(picked);
+            alive.delete(picked);
+        }
+
+        return { solvable: true, order: solved };
+    }
+
+    function sample(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function generateReverseSolvedLayout() {
+        const occupied = new Int16Array(cols * rows).fill(-1);
+        const placed = [];
+        const activeCells = [];
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                if (isInside(x, y)) activeCells.push({ x, y });
+            }
+        }
+
+        const targetFillCells = Math.floor(activeCells.length * 1);
+        const maxSnakeLength = Math.max(3, Math.floor(Math.min(cols, rows) * 0.24));
+        let occupiedCount = 0;
+
+        function isCellFree(x, y) {
+            return isInside(x, y) && occupied[y * cols + x] === -1;
+        }
+
+        function rayClearToExit(head, dx, dy) {
+            for (let step = 1; step < cols + rows; step++) {
+                const cx = head.x + dx * step;
+                const cy = head.y + dy * step;
+                if (!isInside(cx, cy)) return true;
+                if (occupied[cy * cols + cx] !== -1) return false;
+            }
+            return false;
+        }
+
+        function chooseBendDirection(prevDx, prevDy) {
+            const turns = [];
+            if (prevDx !== 0) {
+                turns.push({ x: 0, y: 1 });
+                turns.push({ x: 0, y: -1 });
+            } else {
+                turns.push({ x: 1, y: 0 });
+                turns.push({ x: -1, y: 0 });
+            }
+            return turns;
+        }
+
+        function tryBuildSnake() {
+            const head = sample(activeCells);
+            if (!isCellFree(head.x, head.y)) return null;
+
+            const dirs = [
+                { x: 1, y: 0 },
+                { x: -1, y: 0 },
+                { x: 0, y: 1 },
+                { x: 0, y: -1 }
+            ].sort(() => Math.random() - 0.5);
+
+            for (let dir of dirs) {
+                if (!rayClearToExit(head, dir.x, dir.y)) continue;
+
+                const neck = { x: head.x - dir.x, y: head.y - dir.y };
+                if (!isCellFree(neck.x, neck.y)) continue;
+
+                const path = [head, neck];
+                const used = new Set([`${head.x},${head.y}`, `${neck.x},${neck.y}`]);
+
+                let growDir = { x: -dir.x, y: -dir.y };
+                let cursor = { x: neck.x, y: neck.y };
+                const extra = 1 + Math.floor(Math.random() * maxSnakeLength);
+
+                for (let step = 0; step < extra; step++) {
+                    const shouldTurn = Math.random() < 0.35;
+                    let candidates = shouldTurn
+                        ? chooseBendDirection(growDir.x, growDir.y)
+                        : [growDir, ...chooseBendDirection(growDir.x, growDir.y)];
+                    candidates = candidates.sort(() => Math.random() - 0.5);
+
+                    let moved = false;
+                    for (let candidate of candidates) {
+                        const nx = cursor.x + candidate.x;
+                        const ny = cursor.y + candidate.y;
+                        const key = `${nx},${ny}`;
+                        if (!isCellFree(nx, ny) || used.has(key)) continue;
+                        used.add(key);
+                        path.push({ x: nx, y: ny });
+                        cursor = { x: nx, y: ny };
+                        growDir = candidate;
+                        moved = true;
+                        break;
+                    }
+                    if (!moved) break;
+                }
+
+                let selfBlocks = false;
+                for (let step = 1; step < cols + rows; step++) {
+                    const cx = head.x + dir.x * step;
+                    const cy = head.y + dir.y * step;
+                    if (!isInside(cx, cy)) break;
+                    for (let index = 1; index < path.length; index++) {
+                        if (path[index].x === cx && path[index].y === cy) {
+                            selfBlocks = true;
+                            break;
+                        }
+                    }
+                    if (selfBlocks) break;
+                }
+                if (selfBlocks) continue;
+
+                if (path.length < 3) continue;
+                return path;
+            }
+            return null;
+        }
+
+        function buildStraightBackSnake(head, dir, targetLength) {
+            const neck = { x: head.x - dir.x, y: head.y - dir.y };
+            if (!isCellFree(neck.x, neck.y)) return null;
+
+            const path = [head, neck];
+            let cursor = { x: neck.x, y: neck.y };
+            for (let step = 0; step < targetLength; step++) {
+                const nx = cursor.x - dir.x;
+                const ny = cursor.y - dir.y;
+                if (!isCellFree(nx, ny)) break;
+                path.push({ x: nx, y: ny });
+                cursor = { x: neck.x, y: neck.y };
+            }
+
+            return path.length >= 3 ? path : null;
+        }
+
+        function findBestPlacementAtCell(cell) {
+            const dirs = [
+                { x: 1, y: 0 },
+                { x: -1, y: 0 },
+                { x: 0, y: 1 },
+                { x: 0, y: -1 }
+            ];
+
+            let best = null;
+            for (let dir of dirs) {
+                if (!rayClearToExit(cell, dir.x, dir.y)) continue;
+
+                for (let targetLength = 4; targetLength >= 1; targetLength--) {
+                    const path = buildStraightBackSnake(cell, dir, targetLength);
+                    if (!path) continue;
+                    if (!best || path.length > best.length) best = path;
+                }
+            }
+
+            return best;
+        }
+
+        function placePath(path) {
+            const candidate = path.map(point => ({ x: point.x, y: point.y }));
+            const snake = new Snake(candidate);
+            placed.push(snake);
+            const id = placed.length - 1;
+            for (let point of candidate) {
+                occupied[point.y * cols + point.x] = id;
+            }
+            occupiedCount += candidate.length;
+        }
+
+        function tryFillSingleCell(cell) {
+            const best = findBestPlacementAtCell(cell);
+            if (!best) return false;
+            placePath(best);
+            return true;
+        }
+
+        function extendTailOnce(snakeId) {
+            const snake = placed[snakeId];
+            if (!snake || snake.points.length < 3) return false;
+
+            const tail = snake.points[snake.points.length - 1];
+            const candidates = [
+                { x: tail.x + 1, y: tail.y },
+                { x: tail.x - 1, y: tail.y },
+                { x: tail.x, y: tail.y + 1 },
+                { x: tail.x, y: tail.y - 1 }
+            ];
+
+            let bestCell = null;
+            let bestScore = 999;
+
+            for (let next of candidates) {
+                if (!isCellFree(next.x, next.y)) continue;
+
+                let freeNeighbors = 0;
+                const around = [
+                    { x: next.x + 1, y: next.y },
+                    { x: next.x - 1, y: next.y },
+                    { x: next.x, y: next.y + 1 },
+                    { x: next.x, y: next.y - 1 }
+                ];
+                for (let adj of around) {
+                    if (isCellFree(adj.x, adj.y)) freeNeighbors++;
+                }
+
+                const score = freeNeighbors * 10 + Math.random();
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestCell = next;
+                }
+            }
+
+            if (!bestCell) return false;
+
+            snake.points.push({ x: bestCell.x, y: bestCell.y });
+            occupied[bestCell.y * cols + bestCell.x] = snakeId;
+            occupiedCount++;
+            return true;
+        }
+
+        let idleAttempts = 0;
+        while (occupiedCount < targetFillCells && idleAttempts < 2600) {
+            const path = tryBuildSnake();
+            if (!path) {
+                idleAttempts++;
+                continue;
+            }
+
+            placePath(path);
+            idleAttempts = 0;
+        }
+
+        for (let pass = 0; pass < 8 && occupiedCount < targetFillCells; pass++) {
+            const freeCells = [];
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    if (isCellFree(x, y)) freeCells.push({ x, y });
+                }
+            }
+
+            let madeProgress = false;
+            freeCells.sort(() => Math.random() - 0.5);
+
+            for (let cell of freeCells) {
+                if (!isCellFree(cell.x, cell.y)) continue;
+                if (tryFillSingleCell(cell)) madeProgress = true;
+                if (occupiedCount >= targetFillCells) break;
+            }
+
+            if (!madeProgress) break;
+        }
+
+        let growthRounds = 0;
+        while (occupiedCount < targetFillCells && growthRounds < activeCells.length * 2) {
+            let grew = false;
+            const order = Array.from({ length: placed.length }, (_, index) => index)
+                .sort(() => Math.random() - 0.5);
+
+            for (let snakeId of order) {
+                if (extendTailOnce(snakeId)) grew = true;
+                if (occupiedCount >= targetFillCells) break;
+            }
+
+            if (!grew) break;
+            growthRounds++;
+        }
+
+        return placed;
+    }
+
+    function generateAsync(onComplete) {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('progressText').innerText = `Constructing guaranteed-solvable layout...`;
+
+        setTimeout(() => {
+            let bestLayout = [];
+            let bestScore = -1;
+            let totalActiveCells = 0;
+            for (let value of maskGrid) if (value === 1) totalActiveCells++;
+
+            for (let attempt = 0; attempt < 120; attempt++) {
+                const candidate = generateReverseSolvedLayout();
+                const solved = solveByDependencyElimination(candidate);
+                if (!solved.solvable) continue;
+
+                let occupiedCells = 0;
+                for (let snake of candidate) occupiedCells += snake.points.length;
+                const fillRatio = totalActiveCells > 0 ? occupiedCells / totalActiveCells : 0;
+
+                const score = Math.floor(fillRatio * 10000) + candidate.length * 2 + occupiedCells;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestLayout = candidate;
+                }
+
+                const progress = Math.floor(((attempt + 1) / 120) * 100);
+                document.getElementById('progressBar').style.width = `${progress}%`;
+                document.getElementById('progressText').innerText = `Searching dense candidate ${attempt + 1}/120`;
+            }
+
+            if (bestLayout.length === 0) {
+                bestLayout = generateReverseSolvedLayout();
+            }
+
+            const finalSolve = solveByDependencyElimination(bestLayout);
+            const maxLayer = computeDependencies(bestLayout)
+                .reduce((max, set) => Math.max(max, set.size), 0);
+            let usedCells = 0;
+            for (let snake of bestLayout) usedCells += snake.points.length;
+            const fillPct = totalActiveCells > 0 ? ((usedCells / totalActiveCells) * 100).toFixed(1) : '0.0';
+
+            boardFillPct = fillPct;
+            boardMaxBlockers = maxLayer;
+
+            document.getElementById('loadingOverlay').style.display = 'none';
+            onComplete(bestLayout);
+            
+        }, 50);
+    }
+
+    let dotsCanvas = null;
+    function preRenderDots() {
+        if (!dotsCanvas) dotsCanvas = document.createElement('canvas');
+        dotsCanvas.width = canvas.width; dotsCanvas.height = canvas.height;
+        const dctx = dotsCanvas.getContext('2d');
+        dctx.fillStyle = activePalette.dots; 
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+            if (isInside(c, r)) {
+                dctx.beginPath(); dctx.arc(c * cellSize + cellSize/2, r * cellSize + cellSize/2, 1, 0, Math.PI * 2); dctx.fill();
+            }
+        }
+    }
+    preRenderDots(); // Initialize immediately on startup
+
+    function hasClearEscapeRay(snake, occupancy) {
+        const head = snake.points[0];
+        const dx = snake.dir.x;
+        const dy = snake.dir.y;
+
+        for (let step = 1; step < cols + rows; step++) {
+            const cx = head.x + dx * step;
+            const cy = head.y + dy * step;
+            if (!isInside(cx, cy)) return true;
+            if (occupancy[cy * cols + cx] !== -1) return false;
+        }
+        return false;
+    }
+
+    function hasAvailableMove() {
+        const occupancy = new Int16Array(cols * rows).fill(-1);
+        for (let index = 0; index < segments.length; index++) {
+            for (let point of segments[index].points) {
+                if (isInside(point.x, point.y)) {
+                    occupancy[point.y * cols + point.x] = index;
+                }
+            }
+        }
+
+        for (let index = 0; index < segments.length; index++) {
+            const snake = segments[index];
+            if (snake.isMoving || snake.isRetracting) continue;
+            if (hasClearEscapeRay(snake, occupancy)) return true;
+        }
+        return false;
+    }
+
+    function endRound(reason) {
+        if (roundEnded) return;
+        roundEnded = true;
+        gameState = 'result';
+
+        const remainingSeconds = gameMode === 'competitive' ? Math.max(0, Math.floor(timeLeftSeconds)) : 0;
+        const solvedBonus = solvedCount * 120;
+        const clearBonus = solvedCount === initialArrowCount ? 500 : 0;
+        const mistakePenalty = mistakes * 35;
+        const clickPenalty = Math.max(0, clickCount - solvedCount) * 8;
+        const timeBonus = gameMode === 'competitive' ? remainingSeconds * 4 : 0;
+        const modeMultiplier = gameMode === 'competitive' ? 1.25 : 1.0;
+
+        const raw = solvedBonus + clearBonus + timeBonus - mistakePenalty - clickPenalty;
+        const finalScore = Math.max(0, Math.round(raw * modeMultiplier));
+
+        const reasonTextMap = {
+            solved: 'CONGRATULATIONS! All arrows escaped.',
+            failed: 'No lives remaining. Try again!',
+            stuck: 'No more valid moves. Round ended.',
+            timeout: 'Timer reached zero. Round ended.'
+        };
+
+        const isVictory = reason === 'solved';
+        document.getElementById('finalTitle').textContent = isVictory ? 'Victory' : 'Game Over';
+        document.getElementById('finalReason').textContent = reasonTextMap[reason] || 'Round complete.';
+        document.getElementById('finalScore').textContent = String(finalScore);
+        document.getElementById('finalBreakdown').textContent =
+`mode: ${gameMode}
+solved: ${solvedCount}/${initialArrowCount}
+mistakes: ${mistakes}
+extra clicks: ${Math.max(0, clickCount - solvedCount)}
+time left: ${formatTime(remainingSeconds)}
+board fill: ${boardFillPct}%
+max blockers: ${boardMaxBlockers}`;
+
+        showScreen(resultScreen);
+    }
+
+
+    function initGame() { 
+        gameState = 'ingame';
+        roundEnded = false;
+        isWin = false;
+        mistakes = 0;
+        clickCount = 0;
+        solvedCount = 0;
+        initialArrowCount = 0;
+        lives = 3;
+        zoomScale = 1.0;
+        panX = 0;
+        panY = 0;
+        segments = []; 
+        boardFillPct = '0.0';
+        boardMaxBlockers = 0;
+        roundStartMs = performance.now();
+        timeLeftSeconds = COMPETITIVE_SECONDS;
+        updateHud();
+        updateLivesUI();
+
+        generateAsync(newSegments => {
+            segments = newSegments && newSegments.length > 0 ? newSegments : [];
+            initialArrowCount = segments.length;
+            solvedCount = 0;
+            updateHud();
+        });
+    }
+
+    function getPinchDist() {
+        const pts = Array.from(pointers.values());
+        if (pts.length < 2) return 0;
+        return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    }
+
+    function screenToWorld(cx, cy) {
+        const rect = canvas.getBoundingClientRect();
+        // Calculate point in canvas' internal coordinate space
+        const x = (cx - rect.left) * (canvas.width / rect.width);
+        const y = (cy - rect.top) * (canvas.height / rect.height);
+        return {
+            x: (x - panX) / zoomScale,
+            y: (y - panY) / zoomScale
+        };
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pointers.size === 1) {
+            isDragging = true;
+            lastMousePos = { x: e.clientX, y: e.clientY };
+        } else if (pointers.size === 2) {
+            initialPinchDist = getPinchDist();
+            initialPinchScale = zoomScale;
+            isDragging = false;
+        }
+    });
+
+    canvas.addEventListener('pointermove', e => {
+        if (!pointers.has(e.pointerId)) return;
+        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (pointers.size === 1 && isDragging) {
+            const dx = e.clientX - lastMousePos.x;
+            const dy = e.clientY - lastMousePos.y;
+            // Drag sensitivity depends on zoom
+            panX += dx * (canvas.width / canvas.clientWidth);
+            panY += dy * (canvas.height / canvas.clientHeight);
+            lastMousePos = { x: e.clientX, y: e.clientY };
+        } else if (pointers.size === 2) {
+            const currentDist = getPinchDist();
+            if (initialPinchDist > 0) {
+                const factor = currentDist / initialPinchDist;
+                const newScale = Math.min(Math.max(0.5, initialPinchScale * factor), 4.0);
+                
+                // Optional: zoom toward midpoint of fingers
+                zoomScale = newScale;
+            }
+        }
+    });
+
+    canvas.addEventListener('pointerup', e => {
+        pointers.delete(e.pointerId);
+        if (pointers.size < 2) initialPinchDist = 0;
+        if (pointers.size === 0) isDragging = false;
+    });
+    canvas.addEventListener('pointercancel', e => {
+        pointers.delete(e.pointerId);
+        if (pointers.size === 0) isDragging = false;
+    });
+
+    canvas.addEventListener('click', e => {
+        if (gameState !== 'ingame' || roundEnded) return;
+        
+        const world = screenToWorld(e.clientX, e.clientY);
+        const mx = world.x / cellSize;
+        const my = world.y / cellSize;
+
+        let found = null, bestDist = 0.8; 
+        for(let s of segments) {
+            if (s.isMoving || s.isRetracting) continue;
+            const dist = Math.hypot(mx - (s.points[0].x + 0.5), my - (s.points[0].y + 0.5));
+            if (dist < bestDist) { bestDist = dist; found = s; }
+        }
+        if (found) {
+            clickCount++;
+            found.startPoints = JSON.parse(JSON.stringify(found.points));
+            found.isMoving = true;
+            updateHud();
+        }
+    });
+
+    function loop() {
+        if (gameState === 'ingame' && !roundEnded && gameMode === 'competitive') {
+            const elapsed = (performance.now() - roundStartMs) / 1000;
+            timeLeftSeconds = Math.max(0, COMPETITIVE_SECONDS - elapsed);
+            if (timeLeftSeconds <= 0) {
+                endRound('timeout');
+            }
+            updateHud();
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        ctx.translate(panX, panY);
+        ctx.scale(zoomScale, zoomScale);
+
+        // Build Clipping Path from mask
+        ctx.save();
+        if (shapeMode !== 'square') {
+            ctx.beginPath();
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    if (isInside(x, y)) {
+                        ctx.rect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+            ctx.clip();
+        }
+
+        if (dotsCanvas) ctx.drawImage(dotsCanvas, 0, 0);
+        segments.forEach(s => { s.update(); s.draw(); });
+
+        if (gameState === 'ingame' && !roundEnded && segments.length > 0) {
+            const anyAnimating = segments.some(s => s.isMoving || s.isRetracting);
+            if (!anyAnimating && !hasAvailableMove()) {
+                endRound('stuck');
+            }
+        }
+        
+        ctx.restore(); // end mask clip
+        ctx.restore(); // end camera transform
+
+        requestAnimationFrame(loop);
+    }
+
+    buildShapeMask(); // Initial mask load
+    applyThemeMode('system');
+    selectShape('circle'); // Set initial state
+    updateHud();
+    showStartMenu();
+    loop();
+</script>
+</body>
+</html>
