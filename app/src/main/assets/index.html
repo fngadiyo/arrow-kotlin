@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Arrows</title>
+    <title>Arrow Entangled</title>
     <style>
         :root {
             --bg: #fafafa;
@@ -46,11 +46,23 @@
             cursor: crosshair; 
             touch-action: none; 
             image-rendering: auto; 
-            width: min(100%, 100vw - 48px);
-            max-width: 600px;
+            width: 100%;
             height: auto;
             display: block;
+        }
+        #canvasContainer {
+            position: relative; 
+            overflow: hidden; 
+            border-radius: 12px; 
+            border: 1px solid var(--border); 
+            background: var(--bg);
+            width: min(100%, 100vw - 48px);
+            max-width: 600px;
+            flex: 1;
             margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .ui {
             display: flex;
@@ -159,6 +171,7 @@
             width: 100%;
             max-width: 600px;
             margin-bottom: 24px;
+            padding-top: 64px;
             padding-bottom: 12px;
             border-bottom: 1px solid var(--border);
         }
@@ -231,9 +244,24 @@
             color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             display: block;
         }
+        .icon-button {
+            position: absolute;
+            top: 20px;
+            padding: 8px;
+            background: none;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            z-index: 10;
+            transition: color 0.2s ease;
+        }
+        .icon-button:hover { color: var(--text); transform: none; opacity: 1; }
+        .icon-button svg { width: 22px; height: 22px; }
+        .icon-button.top-right { right: 16px; }
+        .icon-button.top-left { left: 16px; }
 
         @media (min-width: 720px) {
             body { justify-content: center; padding: 20px; }
@@ -246,9 +274,28 @@
 </head>
 <body>
     <section id="startScreen" class="screen">
-        <h1 class="title">The Arrows</h1>
+        <button class="icon-button top-right" onclick="showSettings()" title="Settings">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <h1 class="title">Arrow Entangled</h1>
         <p class="subtitle">Clear every arrow to proceed.</p>
         
+        <div style="max-width: 300px; margin: 0 auto;">
+            <span class="label">Choose Mode</span>
+            <div class="button-group">
+                <button onclick="selectMode('casual')">CASUAL</button>
+                <button onclick="selectMode('competitive')">TIMER</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="configScreen" class="screen hidden">
+        <button class="icon-button top-left" onclick="showStartMenu()" title="Back">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <h1 class="title">Board Config</h1>
+        <p class="subtitle">Fine-tune your layout.</p>
+
         <div style="max-width: 320px; margin: 0 auto; text-align: left;">
             <span class="label">Choose Shape</span>
             <div class="button-group" id="shapeGroup">
@@ -257,40 +304,53 @@
             </div>
 
             <span class="label">Select Level</span>
-            <div class="button-group">
-                <button onclick="startGame('easy')">EASY</button>
-                <button onclick="startGame('medium')">MEDIUM</button>
-                <button onclick="startGame('hard')">HARD</button>
-                <button onclick="startGame('extreme')">EXTREME</button>
+            <div class="button-group" id="levelGroup">
+                <button onclick="selectLevel('easy')" id="btn-easy">EASY</button>
+                <button onclick="selectLevel('medium')" id="btn-medium">MEDIUM</button>
+                <button onclick="selectLevel('hard')" id="btn-hard">HARD</button>
+                <button onclick="selectLevel('extreme')" id="btn-extreme">EXTREME</button>
             </div>
-            
-            <span class="label">Settings</span>
-            <div class="ui" style="gap: 8px;">
-                <select id="themeSelector" class="control" onchange="onThemeChange()" style="flex:1">
-                    <option value="system" selected>SYSTEM</option>
-                    <option value="light">LIGHT</option>
-                    <option value="dark">DARK</option>
-                </select>
-                <select id="modeSelector" class="control" style="flex:1">
-                    <option value="casual" selected>CASUAL</option>
-                    <option value="competitive">COMPETITIVE</option>
-                </select>
+
+            <button onclick="startGame()" style="width:100%; margin-top:12px;">START GAME</button>
+        </div>
+    </section>
+
+    <section id="settingsScreen" class="screen hidden">
+        <button class="icon-button top-left" onclick="showStartMenu()" title="Back">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <h1 class="title">Settings</h1>
+        <p class="subtitle">System preferences.</p>
+
+        <div style="max-width: 320px; margin: 0 auto; text-align: left;">
+            <span class="label">Appearance</span>
+            <div class="button-group" id="themeGroup">
+                <button onclick="selectTheme('system')" id="theme-system">SYSTEM</button>
+                <button onclick="selectTheme('light')" id="theme-light">LIGHT</button>
+                <button onclick="selectTheme('dark')" id="theme-dark">DARK</button>
+            </div>
+
+            <span class="label">Tactile Feedback</span>
+            <div class="button-group" id="hapticGroup">
+                <button onclick="selectHaptic(true)" id="haptic-on">ON</button>
+                <button onclick="selectHaptic(false)" id="haptic-off">OFF</button>
             </div>
         </div>
     </section>
 
-    <section id="gameScreen" class="screen hidden">
+    <section id="gameScreen" class="screen hidden" style="flex: 1; display:flex; flex-direction:column; justify-content:center;">
+        <button class="icon-button top-left" onclick="showStartMenu()" title="Quit">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
         <div class="hud">
             <span id="hudTimer">--:--</span>
             <span id="hudMode">Casual</span>
             <span id="statsText">Solved: 0/0</span>
         </div>
-        <div id="canvasContainer" style="position:relative; overflow:hidden; border-radius:12px; border:1px solid var(--border); background:var(--bg);">
-            <canvas id="mazeCanvas" style="margin:0; width:100%"></canvas>
+        <div id="canvasContainer">
+            <canvas id="mazeCanvas"></canvas>
         </div>
-        <div class="lives-container" id="livesDisplay">
-            <!-- Hearts will be injected here -->
-        </div>
+        <div class="lives-container" id="livesDisplay"></div>
     </section>
 
     <section id="resultScreen" class="screen hidden">
@@ -346,6 +406,11 @@
     let boardFillPct = '0.0';
     let boardMaxBlockers = 0;
 
+    let selectedLevel = 'easy';
+    let hapticEnabled = true;
+
+    // Camera / Zoom state
+
     // Camera / Zoom state
     let zoomScale = 1.0;
     let panX = 0;
@@ -359,11 +424,42 @@
     const COMPETITIVE_SECONDS = 150;
 
     const startScreen = document.getElementById('startScreen');
+    const configScreen = document.getElementById('configScreen');
+    const settingsScreen = document.getElementById('settingsScreen');
     const gameScreen = document.getElementById('gameScreen');
     const resultScreen = document.getElementById('resultScreen');
     const statsText = document.getElementById('statsText');
     const hudMode = document.getElementById('hudMode');
     const hudTimer = document.getElementById('hudTimer');
+
+    function triggerHaptic(strong = false) {
+        if (!hapticEnabled) return;
+        try {
+            if (window.AndroidBridge && typeof window.AndroidBridge.vibrate === 'function') {
+                if (strong) window.AndroidBridge.vibrate("0,40,30,40");
+                else window.AndroidBridge.vibrateOneShot(15, 80);
+                return;
+            }
+        } catch (e) {}
+        
+        if (navigator.vibrate) {
+            if (strong) navigator.vibrate([40, 30, 40]);
+            else navigator.vibrate(15);
+        }
+    }
+
+    window.handleAndroidBack = function() {
+        if (gameState !== 'menu') {
+            showStartMenu();
+            return true;
+        } else {
+            if (window.AndroidBridge && typeof window.AndroidBridge.exitApp === 'function') {
+                window.AndroidBridge.exitApp();
+                return true;
+            }
+        }
+        return false;
+    };
 
     const themePalettes = {
         dark: {
@@ -390,20 +486,29 @@
 
     function applyThemeMode(mode) {
         themeMode = mode;
+        localStorage.setItem('themeMode', mode);
         const resolvedTheme = mode === 'system' ? resolveSystemTheme() : mode;
         document.documentElement.setAttribute('data-theme', resolvedTheme);
         activePalette = themePalettes[resolvedTheme];
+
+        document.querySelectorAll('#themeGroup button').forEach(b => {
+            b.classList.toggle('active', b.id === `theme-${mode}`);
+        });
 
         for (let segment of segments) {
             if (!segment.isRetracting) segment.color = activePalette.snake;
         }
 
+        if (window.AndroidBridge && window.AndroidBridge.setTheme) {
+            window.AndroidBridge.setTheme(resolvedTheme);
+        }
+
         preRenderDots();
     }
 
-    function onThemeChange() {
-        const mode = document.getElementById('themeSelector').value;
+    function selectTheme(mode) {
         applyThemeMode(mode);
+        triggerHaptic();
     }
 
     function formatTime(totalSeconds) {
@@ -420,9 +525,7 @@
     }
 
     function showScreen(target) {
-        startScreen.classList.add('hidden');
-        gameScreen.classList.add('hidden');
-        resultScreen.classList.add('hidden');
+        [startScreen, configScreen, settingsScreen, gameScreen, resultScreen].forEach(s => s.classList.add('hidden'));
         target.classList.remove('hidden');
     }
 
@@ -433,19 +536,48 @@
         showScreen(startScreen);
     }
 
-    function startGame(level) {
-        if (level) {
-            cols = difficulties[level];
-            rows = difficulties[level];
-            maskGrid = new Uint8Array(cols * rows).fill(1);
-            canvas.width = cols * cellSize;
-            canvas.height = rows * cellSize;
-            buildShapeMask();
-            preRenderDots();
-        }
-        gameMode = document.getElementById('modeSelector').value;
+    function showSettings() {
+        showScreen(settingsScreen);
+        triggerHaptic();
+    }
+
+    function selectMode(mode) {
+        gameMode = mode;
+        triggerHaptic();
+        showScreen(configScreen);
+        // Refresh UI state for consistency
+        selectShape(shapeMode);
+        selectLevel(selectedLevel);
+    }
+
+    function selectLevel(level) {
+        selectedLevel = level;
+        document.querySelectorAll('#levelGroup button').forEach(b => {
+            b.classList.toggle('active', b.id === `btn-${level}`);
+        });
+        triggerHaptic();
+    }
+
+    function selectHaptic(enabled) {
+        hapticEnabled = enabled;
+        localStorage.setItem('hapticEnabled', enabled);
+        document.getElementById('haptic-on').classList.toggle('active', enabled);
+        document.getElementById('haptic-off').classList.toggle('active', !enabled);
+        if (enabled) triggerHaptic();
+    }
+
+    function startGame() {
+        cols = difficulties[selectedLevel];
+        rows = difficulties[selectedLevel];
+        maskGrid = new Uint8Array(cols * rows).fill(1);
+        canvas.width = cols * cellSize;
+        canvas.height = rows * cellSize;
+        buildShapeMask();
+        if (typeof preRenderDots === 'function') preRenderDots();
+
         showScreen(gameScreen);
         initGame();
+        triggerHaptic();
     }
 
     const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -461,6 +593,7 @@
         document.getElementById(`btn-${s}`).classList.add('active');
         buildShapeMask();
         preRenderDots();
+        triggerHaptic();
     }
 
     function updateLivesUI() {
@@ -657,6 +790,7 @@
                     mistakes++;
                     lives--;
                     updateLivesUI();
+                    triggerHaptic(true); // Strong haptic on error
                     if (lives <= 0) {
                         endRound('failed');
                         return;
@@ -999,37 +1133,50 @@
         document.getElementById('progressBar').style.width = '0%';
         document.getElementById('progressText').innerText = `Constructing guaranteed-solvable layout...`;
 
-        setTimeout(() => {
-            let bestLayout = [];
-            let bestScore = -1;
-            let totalActiveCells = 0;
-            for (let value of maskGrid) if (value === 1) totalActiveCells++;
+        let bestLayout = [];
+        let bestScore = -1;
+        let totalActiveCells = 0;
+        for (let value of maskGrid) if (value === 1) totalActiveCells++;
 
-            for (let attempt = 0; attempt < 120; attempt++) {
+        let attempt = 0;
+        const totalAttempts = 120;
+        const CHUNK_SIZE = 5; 
+
+        function processChunk() {
+            for (let i = 0; i < CHUNK_SIZE && attempt < totalAttempts; i++) {
                 const candidate = generateReverseSolvedLayout();
                 const solved = solveByDependencyElimination(candidate);
-                if (!solved.solvable) continue;
-
-                let occupiedCells = 0;
-                for (let snake of candidate) occupiedCells += snake.points.length;
-                const fillRatio = totalActiveCells > 0 ? occupiedCells / totalActiveCells : 0;
-
-                const score = Math.floor(fillRatio * 10000) + candidate.length * 2 + occupiedCells;
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestLayout = candidate;
+                
+                if (solved.solvable) {
+                    let occupiedCells = 0;
+                    for (let snake of candidate) occupiedCells += snake.points.length;
+                    const fillRatio = totalActiveCells > 0 ? occupiedCells / totalActiveCells : 0;
+                    const score = Math.floor(fillRatio * 10000) + candidate.length * 2 + occupiedCells;
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestLayout = candidate;
+                    }
                 }
-
-                const progress = Math.floor(((attempt + 1) / 120) * 100);
-                document.getElementById('progressBar').style.width = `${progress}%`;
-                document.getElementById('progressText').innerText = `Searching dense candidate ${attempt + 1}/120`;
+                attempt++;
             }
 
+            const progress = Math.floor((attempt / totalAttempts) * 100);
+            document.getElementById('progressBar').style.width = `${progress}%`;
+            document.getElementById('progressText').innerText = `Searching candidate ${attempt}/${totalAttempts}`;
+
+            if (attempt < totalAttempts) {
+                requestAnimationFrame(processChunk);
+            } else {
+                finalize();
+            }
+        }
+
+        function finalize() {
             if (bestLayout.length === 0) {
                 bestLayout = generateReverseSolvedLayout();
             }
 
-            const finalSolve = solveByDependencyElimination(bestLayout);
             const maxLayer = computeDependencies(bestLayout)
                 .reduce((max, set) => Math.max(max, set.size), 0);
             let usedCells = 0;
@@ -1041,8 +1188,9 @@
 
             document.getElementById('loadingOverlay').style.display = 'none';
             onComplete(bestLayout);
-            
-        }, 50);
+        }
+
+        requestAnimationFrame(processChunk);
     }
 
     let dotsCanvas = null;
@@ -1203,7 +1351,7 @@ max blockers: ${boardMaxBlockers}`;
             const currentDist = getPinchDist();
             if (initialPinchDist > 0) {
                 const factor = currentDist / initialPinchDist;
-                const newScale = Math.min(Math.max(0.5, initialPinchScale * factor), 4.0);
+                const newScale = Math.min(Math.max(0.5, initialPinchScale * factor), 12.0);
                 
                 // Optional: zoom toward midpoint of fingers
                 zoomScale = newScale;
@@ -1236,6 +1384,7 @@ max blockers: ${boardMaxBlockers}`;
         }
         if (found) {
             clickCount++;
+            triggerHaptic(); // Standard haptic on touch
             found.startPoints = JSON.parse(JSON.stringify(found.points));
             found.isMoving = true;
             updateHud();
@@ -1288,9 +1437,15 @@ max blockers: ${boardMaxBlockers}`;
         requestAnimationFrame(loop);
     }
 
-    buildShapeMask(); // Initial mask load
-    applyThemeMode('system');
-    selectShape('circle'); // Set initial state
+    // Load persisted settings
+    const savedTheme = localStorage.getItem('themeMode') || 'system';
+    const savedHaptic = localStorage.getItem('hapticEnabled') !== 'false'; // Default true
+    
+    buildShapeMask(); 
+    applyThemeMode(savedTheme);
+    selectHaptic(savedHaptic);
+    selectShape('circle'); 
+    selectLevel('easy');
     updateHud();
     showStartMenu();
     loop();
