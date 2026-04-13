@@ -16,11 +16,19 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.OnBackPressedCallback
+import com.google.android.gms.ads.*
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.android.billingclient.api.*
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var statusBarSpacer: View
+    private lateinit var adView: AdView
+    private var interstitialAd: InterstitialAd? = null
+    private lateinit var billingClient: BillingClient
+    private var isAdFree = false
     private val vibrator: Vibrator by lazy { getSystemService(Vibrator::class.java) }
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
@@ -30,6 +38,29 @@ class MainActivity : AppCompatActivity() {
 
         statusBarSpacer = findViewById(R.id.statusBarSpacer)
         webView = findViewById(R.id.webView)
+        adView = findViewById(R.id.adView)
+
+        // Load purchase status
+        val prefs = getSharedPreferences("arrow_prefs", MODE_PRIVATE)
+        isAdFree = prefs.getBoolean("ad_free", false)
+
+        // Initialize Mobile Ads SDK
+        val testDeviceIds = listOf(AdRequest.DEVICE_ID_EMULATOR, "INSERT_YOUR_TEST_DEVICE_ID_HERE")
+        val configuration = RequestConfiguration.Builder().setTestDeviceIds(testDeviceIds).build()
+        MobileAds.setRequestConfiguration(configuration)
+        MobileAds.initialize(this) { }
+        
+        if (isAdFree) {
+            adView.visibility = View.GONE
+        } else {
+            // Load Banner Ad
+            val adRequest = AdRequest.Builder().build()
+            adView.loadAd(adRequest)
+            // Pre-load Interstitial
+            loadInterstitial()
+        }
+
+        initializeBillingClient()
 
         // Initial status bar setup
         updateSystemBars("light")
@@ -90,6 +121,113 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showInterstitial() {
+        if (isAdFree) return
+        runOnUiThread {
+            interstitialAd?.let { ad ->
+                ad.show(this)
+                interstitialAd = null
+                loadInterstitial() 
+            } ?: run {
+                loadInterstitial()
+            }
+        }
+    }
+
+    private fun loadInterstitial() {
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(this, "ca-app-pub-6838652186707908/9821819196", adRequest, object : InterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: InterstitialAd) {
+                interstitialAd = ad
+            }
+            override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                interstitialAd = null
+            }
+        })
+    }
+
+    private fun initializeBillingClient() {
+        billingClient = BillingClient.newBuilder(this)
+            .setListener { billingResult, purchases ->
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                    for (purchase in purchases) {
+                        handlePurchase(purchase)
+                    }
+                }
+            }
+            .enablePendingPurchases()
+            .build()
+
+        billingClient.startConnection(object : BillingClientStateListener {
+            override fun onBillingSetupFinished(billingResult: BillingResult) {
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    queryPurchases()
+                }
+            }
+            override fun onBillingServiceDisconnected() {}
+        })
+    }
+
+    private fun queryPurchases() {
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.INAPP)
+            .build()
+        billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                for (purchase in purchases) {
+                    if (purchase.products.contains("remove_ads") && purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                        applyAdFreeStatus()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun handlePurchase(purchase: Purchase) {
+        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged) {
+            val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
+                .build()
+            billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    applyAdFreeStatus()
+                }
+            }
+        }
+    }
+
+    private fun applyAdFreeStatus() {
+        isAdFree = true
+        getSharedPreferences("arrow_prefs", MODE_PRIVATE).edit().putBoolean("ad_free", true).apply()
+        runOnUiThread {
+            adView.visibility = View.GONE
+            webView.evaluateJavascript("window.onAdsRemoved && window.onAdsRemoved();", null)
+        }
+    }
+
+    private fun launchBillingFlow() {
+        val productList = listOf(
+            QueryProductDetailsParams.Product.newBuilder()
+                .setProductId("remove_ads")
+                .setProductType(BillingClient.ProductType.INAPP)
+                .build()
+        )
+        val params = QueryProductDetailsParams.newBuilder().setProductList(productList).build()
+        billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && productDetailsList.isNotEmpty()) {
+                val productDetailsParamsList = listOf(
+                    BillingFlowParams.ProductDetailsParams.newBuilder()
+                        .setProductDetails(productDetailsList[0])
+                        .build()
+                )
+                val billingFlowParams = BillingFlowParams.newBuilder()
+                    .setProductDetailsParamsList(productDetailsParamsList)
+                    .build()
+                billingClient.launchBillingFlow(this, billingFlowParams)
+            }
+        }
+    }
+
     inner class AndroidBridge {
         @JavascriptInterface
         fun setTheme(theme: String) {
@@ -122,6 +260,16 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun exitApp() {
             finish()
+        }
+
+        @JavascriptInterface
+        fun showInterstitial() {
+            this@MainActivity.showInterstitial()
+        }
+
+        @JavascriptInterface
+        fun removeAds() {
+            launchBillingFlow()
         }
     }
 }

@@ -44,5 +44,8 @@ dependencies {
     // Google Play Games Services v2 (Placeholder version)
     implementation("com.google.android.gms:play-services-games-v2:20.1.2")
 
+    // Google Play Billing Library
+    implementation("com.android.billingclient:billing-ktx:7.0.0")
+
     testImplementation("junit:junit:4.13.2")
 }

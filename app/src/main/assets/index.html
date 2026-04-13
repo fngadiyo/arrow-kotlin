@@ -33,22 +33,26 @@
             flex-direction: column; 
             align-items: center; 
             justify-content: center; 
-            min-height: 100dvh; 
-            padding: 24px; 
+            height: 100dvh; 
+            width: 100vw;
+            margin: 0;
+            padding: 16px; 
             box-sizing: border-box;
             font-family: var(--font); 
             color: var(--text);
             transition: background 0.4s ease, color 0.4s ease;
             -webkit-font-smoothing: antialiased;
+            overflow: hidden;
         }
         canvas { 
-            background: transparent; 
+            background: var(--bg); 
             cursor: crosshair; 
             touch-action: none; 
             image-rendering: auto; 
-            width: 100%;
-            height: auto;
             display: block;
+            transform-origin: center;
+            will-change: transform;
+            transition: background 0.4s ease;
         }
         #canvasContainer {
             position: relative; 
@@ -56,10 +60,11 @@
             border-radius: 12px; 
             border: 1px solid var(--border); 
             background: var(--bg);
-            width: min(100%, 100vw - 48px);
+            width: 100%;
             max-width: 600px;
             flex: 1;
-            margin: 20px 0;
+            min-height: 0;
+            margin: 12px 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -140,8 +145,14 @@
         .screen {
             width: 100%;
             max-width: 600px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             animation: fadeIn 0.5s ease;
+            overflow: hidden;
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -335,6 +346,11 @@
                 <button onclick="selectHaptic(true)" id="haptic-on">ON</button>
                 <button onclick="selectHaptic(false)" id="haptic-off">OFF</button>
             </div>
+
+            <div id="storeSection">
+                <span class="label">Store</span>
+                <button id="removeAdsBtn" onclick="AndroidBridge.removeAds()" style="width:100%; border-color: #f59e0b; color: #f59e0b; background: transparent;">REMOVE ADS</button>
+            </div>
         </div>
     </section>
 
@@ -405,12 +421,14 @@
     let clickCount = 0;
     let boardFillPct = '0.0';
     let boardMaxBlockers = 0;
+    let lastReason = null;
 
     let selectedLevel = 'easy';
     let hapticEnabled = true;
 
     // Camera / Zoom state
 
+    // Camera / Zoom state
     // Camera / Zoom state
     let zoomScale = 1.0;
     let panX = 0;
@@ -420,6 +438,11 @@
     let pointers = new Map();
     let initialPinchDist = 0;
     let initialPinchScale = 1.0;
+
+    function updateCanvasTransform() {
+        // Visual transform of the canvas element itself
+        canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+    }
 
     const COMPETITIVE_SECONDS = 150;
 
@@ -466,14 +489,14 @@
             snake: '#ededed',
             blocked: '#ef4444',
             boardBg: '#0a0a0a',
-            dots: 'rgba(255, 255, 255, 0.1)',
+            dots: 'rgba(242, 116, 5, 0.3)',
             win: '#ededed'
         },
         light: {
             snake: '#171717',
             blocked: '#ef4444',
             boardBg: '#fafafa',
-            dots: 'rgba(0, 0, 0, 0.1)',
+            dots: 'rgba(217, 90, 4, 0.3)',
             win: '#171717'
         }
     };
@@ -503,6 +526,7 @@
             window.AndroidBridge.setTheme(resolvedTheme);
         }
 
+        canvas.style.background = activePalette.boardBg;
         preRenderDots();
     }
 
@@ -530,6 +554,13 @@
     }
 
     function showStartMenu() {
+        if (gameState === 'result' && lastReason === 'failed') {
+            try {
+                if (window.AndroidBridge && typeof window.AndroidBridge.showInterstitial === 'function') {
+                    window.AndroidBridge.showInterstitial();
+                }
+            } catch (e) {}
+        }
         gameState = 'menu';
         roundEnded = true;
         isWin = false;
@@ -689,6 +720,7 @@
             this.isRetracting = false;
             this.moveProgress = 0;
             this.speed = 0.85; 
+            this.hasErrored = false;
             this.color = activePalette.snake;
         }
         getDirKey() {
@@ -702,7 +734,8 @@
         }
         flip() { this.points.reverse(); this.updateDirection(); }
         draw() {
-            ctx.strokeStyle = this.color; ctx.lineWidth = 3.0; ctx.lineCap = "round"; ctx.lineJoin = "round";
+            const drawColor = this.hasErrored ? activePalette.blocked : this.color;
+            ctx.strokeStyle = drawColor; ctx.lineWidth = 4.0; ctx.lineCap = "round"; ctx.lineJoin = "round";
             ctx.beginPath();
             const offset = this.moveProgress;
             for (let i = 0; i < this.points.length; i++) {
@@ -759,7 +792,7 @@
             }
 
             ctx.closePath();
-            ctx.fillStyle = this.color;
+            ctx.fillStyle = this.hasErrored ? activePalette.blocked : this.color;
             ctx.fill();
             ctx.restore();
         }
@@ -767,7 +800,8 @@
             if (this.isRetracting) {
                 this.moveProgress -= this.speed * 1.5;
                 if (this.moveProgress <= 0) {
-                    this.moveProgress = 0; this.isRetracting = false; this.color = activePalette.snake;
+                    this.moveProgress = 0; this.isRetracting = false; 
+                    if (!this.hasErrored) this.color = activePalette.snake;
                     if (this.startPoints) { this.points = JSON.parse(JSON.stringify(this.startPoints)); this.startPoints = null; this.updateDirection(); }
                 }
                 return;
@@ -785,15 +819,15 @@
                 }
                 if (hit) {
                     this.isMoving = false;
-                    this.isRetracting = true;
+                    this.hasErrored = true;
                     this.color = activePalette.blocked;
+                    this.isRetracting = true;
                     mistakes++;
                     lives--;
                     updateLivesUI();
                     triggerHaptic(true); // Strong haptic on error
                     if (lives <= 0) {
                         endRound('failed');
-                        return;
                     }
                     updateHud();
                     return;
@@ -1201,7 +1235,7 @@
         dctx.fillStyle = activePalette.dots; 
         for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
             if (isInside(c, r)) {
-                dctx.beginPath(); dctx.arc(c * cellSize + cellSize/2, r * cellSize + cellSize/2, 1, 0, Math.PI * 2); dctx.fill();
+                dctx.beginPath(); dctx.arc(c * cellSize + cellSize/2, r * cellSize + cellSize/2, 2, 0, Math.PI * 2); dctx.fill();
             }
         }
     }
@@ -1241,6 +1275,7 @@
 
     function endRound(reason) {
         if (roundEnded) return;
+        lastReason = reason;
         roundEnded = true;
         gameState = 'result';
 
@@ -1256,7 +1291,7 @@
         const finalScore = Math.max(0, Math.round(raw * modeMultiplier));
 
         const reasonTextMap = {
-            solved: 'CONGRATULATIONS! All arrows escaped.',
+            solved: 'COMPLETED! All arrows escaped.',
             failed: 'No lives remaining. Try again!',
             stuck: 'No more valid moves. Round ended.',
             timeout: 'Timer reached zero. Round ended.'
@@ -1288,9 +1323,19 @@ max blockers: ${boardMaxBlockers}`;
         solvedCount = 0;
         initialArrowCount = 0;
         lives = 3;
-        zoomScale = 1.0;
+
+        // Calculate fit scale
+        const container = document.getElementById('canvasContainer');
+        const cw = container.clientWidth || 300;
+        const ch = container.clientHeight || 300;
+        const scaleW = cw / (cols * cellSize);
+        const scaleH = ch / (rows * cellSize);
+        zoomScale = Math.min(scaleW, scaleH, 1.0);
+        if (zoomScale <= 0) zoomScale = 1.0;
+        
         panX = 0;
         panY = 0;
+        updateCanvasTransform();
         segments = []; 
         boardFillPct = '0.0';
         boardMaxBlockers = 0;
@@ -1315,12 +1360,20 @@ max blockers: ${boardMaxBlockers}`;
 
     function screenToWorld(cx, cy) {
         const rect = canvas.getBoundingClientRect();
-        // Calculate point in canvas' internal coordinate space
-        const x = (cx - rect.left) * (canvas.width / rect.width);
-        const y = (cy - rect.top) * (canvas.height / rect.height);
+        // Since we scale the element, rect already contains the visual size.
+        // We need to map screen coordinates back to the un-transformed canvas space.
+        const x = (cx - rect.left);
+        const y = (cy - rect.top);
+        
+        // Convert screen pixels to canvas pixels (unscaled)
+        // Note: canvas.width/height is the internal resolution.
+        // rect.width/height is the visual size (including zoomScale).
+        const scaleX = canvas.width / (rect.width / zoomScale);
+        const scaleY = canvas.height / (rect.height / zoomScale);
+
         return {
-            x: (x - panX) / zoomScale,
-            y: (y - panY) / zoomScale
+            x: x * (canvas.width / rect.width),
+            y: y * (canvas.height / rect.height)
         };
     }
 
@@ -1343,18 +1396,16 @@ max blockers: ${boardMaxBlockers}`;
         if (pointers.size === 1 && isDragging) {
             const dx = e.clientX - lastMousePos.x;
             const dy = e.clientY - lastMousePos.y;
-            // Drag sensitivity depends on zoom
-            panX += dx * (canvas.width / canvas.clientWidth);
-            panY += dy * (canvas.height / canvas.clientHeight);
+            panX += dx;
+            panY += dy;
             lastMousePos = { x: e.clientX, y: e.clientY };
+            updateCanvasTransform();
         } else if (pointers.size === 2) {
             const currentDist = getPinchDist();
             if (initialPinchDist > 0) {
                 const factor = currentDist / initialPinchDist;
-                const newScale = Math.min(Math.max(0.5, initialPinchScale * factor), 12.0);
-                
-                // Optional: zoom toward midpoint of fingers
-                zoomScale = newScale;
+                zoomScale = Math.min(Math.max(0.2, initialPinchScale * factor), 10.0);
+                updateCanvasTransform();
             }
         }
     });
@@ -1379,8 +1430,11 @@ max blockers: ${boardMaxBlockers}`;
         let found = null, bestDist = 0.8; 
         for(let s of segments) {
             if (s.isMoving || s.isRetracting) continue;
-            const dist = Math.hypot(mx - (s.points[0].x + 0.5), my - (s.points[0].y + 0.5));
-            if (dist < bestDist) { bestDist = dist; found = s; }
+            for (let pt of s.points) {
+                const dist = Math.hypot(mx - (pt.x + 0.5), my - (pt.y + 0.5));
+                if (dist < bestDist) { bestDist = dist; found = s; break; }
+            }
+            if (found) break;
         }
         if (found) {
             clickCount++;
@@ -1403,10 +1457,8 @@ max blockers: ${boardMaxBlockers}`;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        ctx.save();
-        ctx.translate(panX, panY);
-        ctx.scale(zoomScale, zoomScale);
-
+        // No more ctx.translate/scale here - we use CSS transform on the element
+        
         // Build Clipping Path from mask
         ctx.save();
         if (shapeMode !== 'square') {
@@ -1432,7 +1484,6 @@ max blockers: ${boardMaxBlockers}`;
         }
         
         ctx.restore(); // end mask clip
-        ctx.restore(); // end camera transform
 
         requestAnimationFrame(loop);
     }
@@ -1441,6 +1492,11 @@ max blockers: ${boardMaxBlockers}`;
     const savedTheme = localStorage.getItem('themeMode') || 'system';
     const savedHaptic = localStorage.getItem('hapticEnabled') !== 'false'; // Default true
     
+    window.onAdsRemoved = function() {
+        const btn = document.getElementById('storeSection');
+        if (btn) btn.style.display = 'none';
+    };
+
     buildShapeMask(); 
     applyThemeMode(savedTheme);
     selectHaptic(savedHaptic);
