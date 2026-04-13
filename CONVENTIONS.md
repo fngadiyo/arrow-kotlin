@@ -1,6 +1,6 @@
 # 🏗️ Arrow Kotlin Repository Conventions
 
-This document defines the professional standards and governance for the Arrow Kotlin repository. Follow these rules to ensure consistent delivery and automated versioning.
+This document defines the professional standards and governance for Arrow Entangled Kotlin repository. Follow these rules to ensure consistent delivery and automated versioning.
 
 ---
 

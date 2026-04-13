@@ -9,7 +9,7 @@ Arrow Entangled is a mind-bending puzzle game where players must strategically c
 
 ## Features
 
-- **Puzzle Gameplay**: Direct integration of the Arrow Entangled logic, featuring casual & competitive modes.
+- **Puzzle Gameplay**: Direct integration of Arrow Entangled Entangled logic, featuring casual & competitive modes.
 - **Native Android Shell**: High-performance WebView implementation with haptic feedback bridge.
 - **Premium Design**: Adaptive launcher icon, system-aware dynamic themes (Dark/Light).
 - **Monetization**: Integrated Google Mobile Ads (Banner/Interstitial) and placeholder for In-App Purchases.
