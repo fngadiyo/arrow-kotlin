@@ -12,13 +12,23 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.0.1"
 
         manifestPlaceholders["ADMOB_APP_ID"] = (project.findProperty("ADMOB_APP_ID") as String?) ?: ""
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../keystore/release.jks")
+            storePassword = "arrow-entangled-2026"
+            keyAlias = "arrow-key"
+            keyPassword = "arrow-entangled-2026"
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

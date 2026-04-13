@@ -412,7 +412,9 @@
     let gameMode = 'casual';
     let gameState = 'menu';
     let roundEnded = false;
+    let isGamePaused = false;
     let roundStartMs = 0;
+    let pauseStartMs = 0;
     let timeLeftSeconds = 150;
     let initialArrowCount = 0;
     let solvedCount = 0;
@@ -1445,7 +1447,30 @@ max blockers: ${boardMaxBlockers}`;
         }
     });
 
+    window.setGamePaused = function(paused) {
+        if (isGamePaused === paused) return;
+        isGamePaused = paused;
+        if (paused) {
+            pauseStartMs = performance.now();
+        } else {
+            if (pauseStartMs > 0) {
+                const pausedDuration = performance.now() - pauseStartMs;
+                roundStartMs += pausedDuration;
+                pauseStartMs = 0;
+            }
+        }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+        window.setGamePaused(document.hidden);
+    });
+
     function loop() {
+        if (isGamePaused) {
+            requestAnimationFrame(loop);
+            return;
+        }
+
         if (gameState === 'ingame' && !roundEnded && gameMode === 'competitive') {
             const elapsed = (performance.now() - roundStartMs) / 1000;
             timeLeftSeconds = Math.max(0, COMPETITIVE_SECONDS - elapsed);

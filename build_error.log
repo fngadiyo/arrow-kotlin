@@ -1,0 +1,47 @@
+
+> Configure project :app
+e: file:///C:/Users/fadly/Documents/work/home/arrow-kotlin/app/build.gradle.kts:20:27: Unresolved reference: Properties
+
+FAILURE: Build completed with 2 failures.
+
+1: Task failed with an exception.
+-----------
+* Where:
+Build file 'C:\Users\fadly\Documents\work\home\arrow-kotlin\app\build.gradle.kts' line: 20
+
+* What went wrong:
+Script compilation error:
+
+  Line 20:     val localProperties = Properties()
+                                     ^ Unresolved reference: Properties
+
+1 error
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* Where:
+Build file 'C:\Users\fadly\Documents\work\home\arrow-kotlin\app\build.gradle.kts' line: 20
+
+* What went wrong:
+Script compilation error:
+
+  Line 20:     val localProperties = Properties()
+                                     ^ Unresolved reference: Properties
+
+1 error
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 8s

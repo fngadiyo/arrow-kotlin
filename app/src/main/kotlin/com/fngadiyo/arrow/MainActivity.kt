@@ -228,6 +228,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        adView.pause()
+        webView.onPause()
+        webView.evaluateJavascript("window.setGamePaused && window.setGamePaused(true);", null)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        adView.resume()
+        webView.onResume()
+        webView.evaluateJavascript("window.setGamePaused && window.setGamePaused(false);", null)
+    }
+
+    override fun onDestroy() {
+        adView.destroy()
+        webView.destroy()
+        super.onDestroy()
+    }
+
     inner class AndroidBridge {
         @JavascriptInterface
         fun setTheme(theme: String) {
