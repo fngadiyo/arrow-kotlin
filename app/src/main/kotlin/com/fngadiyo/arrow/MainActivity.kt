@@ -291,5 +291,10 @@ class MainActivity : AppCompatActivity() {
         fun removeAds() {
             launchBillingFlow()
         }
+
+        @JavascriptInterface
+        fun restorePurchases() {
+            queryPurchases()
+        }
     }
 }

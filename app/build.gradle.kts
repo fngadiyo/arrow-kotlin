@@ -3,6 +3,10 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val enableNativeSymbols = providers.gradleProperty("enableNativeSymbols")
+    .map(String::toBoolean)
+    .orElse(false)
+
 android {
     namespace = "com.fngadiyo.arrow"
     compileSdk = 35
@@ -11,8 +15,8 @@ android {
         applicationId = "com.fngadiyo.arrow"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.0.1"
+        versionCode = 2
+        versionName = "0.0.2"
 
         manifestPlaceholders["ADMOB_APP_ID"] = (project.findProperty("ADMOB_APP_ID") as String?) ?: ""
     }
@@ -31,6 +35,11 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (enableNativeSymbols.get()) {
+                ndk {
+                    debugSymbolLevel = "SYMBOL_TABLE"
+                }
+            }
         }
     }
     compileOptions {
